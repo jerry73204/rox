@@ -1,0 +1,7 @@
+[package]
+name = "ros-package-manifest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+strong-xml = "0.6.3"
