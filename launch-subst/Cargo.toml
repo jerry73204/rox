@@ -1,0 +1,13 @@
+[package]
+name = "launch-subst"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+pest = "2.7.10"
+pest_derive = "2.7.10"
+
+[dev-dependencies]
+anyhow = { version = "1.0.86", features = ["backtrace"] }
+clap = { version = "4.5.4", features = ["derive"] }

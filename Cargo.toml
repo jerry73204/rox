@@ -5,4 +5,5 @@ members = [
     "ros-repo",
     "launch-format",
     "launch-parse",
+    "launch-subst",
 ]
