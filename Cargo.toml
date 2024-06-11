@@ -3,5 +3,6 @@ resolver = "2"
 members = [
     "ros-package-manifest",
     "ros-repo",
-    "xml-launch",
+    "launch-format",
+    "launch-parse",
 ]

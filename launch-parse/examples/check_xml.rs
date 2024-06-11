@@ -23,7 +23,7 @@ fn main() -> Result<()> {
         })
         .try_collect()?;
 
-    let profile = xml_launch::load_launch_file(opts.input_file, args)?;
+    let profile = launch_parse::load_launch_file(opts.input_file, args)?;
     dbg!(profile);
 
     Ok(())

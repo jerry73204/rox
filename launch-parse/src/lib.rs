@@ -1,14 +1,13 @@
-use crate::{
+use anyhow::{bail, ensure, Context, Result};
+use launch_format::{
     Executable, Group, GroupChild, Include, IncludeArg, Launch, LaunchArg, LaunchChild, Let, Node,
     NodeChild, Output, Param, Remap, SetEnv, UnsetEnv,
 };
-use anyhow::{bail, ensure, Context, Result};
 use std::{
     collections::HashMap,
-    fs::File,
-    io::BufReader,
     path::{Path, PathBuf},
 };
+use strong_xml::XmlRead;
 
 #[derive(Debug, Clone)]
 pub struct LaunchProfile {
@@ -57,11 +56,9 @@ where
     };
 
     let launch: Launch = if ext == "xml" {
-        let reader = BufReader::new(
-            File::open(path).with_context(|| format!("Unable to open {}", path.display()))?,
-        );
-        serde_xml_rs::from_reader(reader)
-            .with_context(|| format!("Unable to parse {}", path.display()))?
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("Unable to open {}", path.display()))?;
+        Launch::from_str(&text).with_context(|| format!("Unable to parse {}", path.display()))?
     } else {
         bail!(
             "The launch file must ends with '.xml' or '.yaml': {}",
