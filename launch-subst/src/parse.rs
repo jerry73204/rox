@@ -1,7 +1,9 @@
-use crate::types::{Block, Substitution};
-use pest::error::{Error, ErrorVariant};
-use pest::iterators::Pair;
-use pest::Parser;
+use crate::types::{SubstBlock, Substitution};
+use pest::{
+    error::{Error, ErrorVariant},
+    iterators::Pair,
+    Parser,
+};
 use pest_derive::Parser;
 
 macro_rules! bail {
@@ -15,7 +17,7 @@ macro_rules! bail {
     };
 }
 
-pub fn parse(input: &str) -> Result<Vec<Block>, Error<Rule>> {
+pub fn parse(input: &str) -> Result<Vec<SubstBlock>, Error<Rule>> {
     let mut pairs = ExprParser::parse(Rule::expr, input).unwrap();
     parse_expr(pairs.next().unwrap())
 }
@@ -24,7 +26,7 @@ pub fn parse(input: &str) -> Result<Vec<Block>, Error<Rule>> {
 #[grammar = "grammar.pest"] // relative to src
 struct ExprParser;
 
-fn parse_expr(pair: Pair<Rule>) -> Result<Vec<Block>, Error<Rule>> {
+fn parse_expr(pair: Pair<Rule>) -> Result<Vec<SubstBlock>, Error<Rule>> {
     debug_assert_eq!(pair.as_rule(), Rule::expr);
     pair.into_inner()
         .filter(|pair| pair.as_rule() == Rule::block)
@@ -32,12 +34,12 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Vec<Block>, Error<Rule>> {
         .collect()
 }
 
-fn parse_block(pair: Pair<Rule>) -> Result<Block, Error<Rule>> {
+fn parse_block(pair: Pair<Rule>) -> Result<SubstBlock, Error<Rule>> {
     debug_assert_eq!(pair.as_rule(), Rule::block);
     let inner = pair.into_inner().next().unwrap();
     let block = match inner.as_rule() {
-        Rule::subst => Block::Substitution(parse_subst(inner)?),
-        Rule::text => Block::Text(parse_text(inner)),
+        Rule::subst => SubstBlock::Substitution(parse_subst(inner)?),
+        Rule::text => SubstBlock::Text(parse_text(inner)),
         _ => unreachable!(),
     };
     Ok(block)

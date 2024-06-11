@@ -2,7 +2,7 @@ use anyhow::bail;
 use std::env::VarError;
 
 #[derive(Debug, Clone)]
-pub enum Block {
+pub enum SubstBlock {
     Text(String),
     Substitution(Substitution),
 }

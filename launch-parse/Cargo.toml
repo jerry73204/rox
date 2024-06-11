@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 launch-format = { version = "0.1.0", path = "../launch-format" }
+launch-subst = { version = "0.1.0", path = "../launch-subst" }
+serde_yaml = "0.9.34"
 strong-xml = "0.6.3"
 
 [dev-dependencies]
