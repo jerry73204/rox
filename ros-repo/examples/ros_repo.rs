@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -7,7 +6,7 @@ struct Args {
     pub dir: PathBuf,
 }
 
-fn main() -> Result<()> {
+fn main() -> eyre::Result<()> {
     let args = Args::parse();
     ros_repo::resolve(args.dir)?;
     Ok(())

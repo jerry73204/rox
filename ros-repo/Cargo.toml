@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
-clap = { version = "4.5.7", features = ["derive"] }
+eyre.workspace = true
 glob = "0.3.1"
 itertools = "0.13.0"
 pubgrub = "0.2.1"
@@ -14,4 +13,4 @@ ros-package-manifest = { version = "0.1.0", path = "../ros-package-manifest" }
 strong-xml = "0.6.3"
 
 [dev-dependencies]
-anyhow = { version = "1.0.86", features = ["backtrace"] }
+clap = { version = "4.5.16", features = ["derive"] }

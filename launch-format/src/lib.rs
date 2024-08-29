@@ -1,4 +1,4 @@
-use anyhow::bail;
+use eyre::bail;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display},
@@ -265,7 +265,7 @@ pub enum Output {
 }
 
 impl FromStr for Output {
-    type Err = anyhow::Error;
+    type Err = eyre::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let output = match s {

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use eyre::{bail, Result};
 use clap::Parser;
 use itertools::Itertools;
 use std::path::PathBuf;

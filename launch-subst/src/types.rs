@@ -1,4 +1,4 @@
-use anyhow::bail;
+use eyre::bail;
 use std::env::VarError;
 
 #[derive(Debug, Clone)]
@@ -35,7 +35,7 @@ pub enum Substitution {
 }
 
 impl Substitution {
-    pub fn eval(&self) -> anyhow::Result<String> {
+    pub fn eval(&self) -> eyre::Result<String> {
         let text = match self {
             Substitution::Env { variable } => std::env::var(variable)?,
             Substitution::OptEnv {

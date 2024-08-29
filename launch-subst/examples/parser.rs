@@ -6,7 +6,7 @@ struct Opts {
     pub expr: String,
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> eyre::Result<()> {
     let opts = Opts::parse();
     let output = parse(&opts.expr)?;
     dbg!(output);

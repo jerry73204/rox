@@ -4,13 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
+eyre.workspace = true
 launch-format = { version = "0.1.0", path = "../launch-format" }
 launch-subst = { version = "0.1.0", path = "../launch-subst" }
 serde_yaml = "0.9.34"
 strong-xml = "0.6.3"
 
 [dev-dependencies]
-anyhow = { version = "1.0.79", features = ["backtrace"] }
 clap = { version = "4.5.1", features = ["derive"] }
 itertools = "0.12.1"

@@ -1,6 +1,6 @@
 pub mod context;
 
-use anyhow::{bail, ensure, Context, Result};
+use eyre::{bail, ensure, Context, Result};
 use launch_format::{
     Executable, Group, GroupChild, Include, IncludeArg, Launch, LaunchArg, LaunchChild, Let, Node,
     NodeChild, SetEnv, UnsetEnv,
@@ -35,7 +35,7 @@ where
     Ok(profile)
 }
 
-fn load_launch_file_private<P, I>(path: P, args: I, state: &mut State) -> Result<()>
+fn load_launch_file_private<P, I>(path: P, args: I, state: &mut State) -> eyre::Result<()>
 where
     I: IntoIterator<Item = (String, String)>,
     P: AsRef<Path>,
@@ -84,7 +84,7 @@ where
     Ok(())
 }
 
-fn parse_launch(launch: &Launch, state: &mut State) -> Result<()> {
+fn parse_launch(launch: &Launch, state: &mut State) -> eyre::Result<()> {
     for child in &launch.children {
         match child {
             LaunchChild::Arg(LaunchArg {
@@ -121,7 +121,7 @@ fn parse_launch(launch: &Launch, state: &mut State) -> Result<()> {
     Ok(())
 }
 
-fn parse_group(group: &Group, state: &mut State) -> Result<()> {
+fn parse_group(group: &Group, state: &mut State) -> eyre::Result<()> {
     let Group {
         scoped,
         r#if,
@@ -160,7 +160,7 @@ fn parse_group(group: &Group, state: &mut State) -> Result<()> {
     Ok(())
 }
 
-fn parse_node(node: &Node, state: &mut State) -> Result<()> {
+fn parse_node(node: &Node, state: &mut State) -> eyre::Result<()> {
     let Node {
         pkg,
         exec,
@@ -190,7 +190,7 @@ fn parse_node(node: &Node, state: &mut State) -> Result<()> {
     todo!();
 }
 
-fn parse_executable(exec: &Executable, state: &mut State) -> Result<()> {
+fn parse_executable(exec: &Executable, state: &mut State) -> eyre::Result<()> {
     let Executable {
         env,
         cmd,
@@ -212,7 +212,7 @@ fn parse_executable(exec: &Executable, state: &mut State) -> Result<()> {
     todo!();
 }
 
-fn parse_include(include: &Include, state: &mut State) -> Result<()> {
+fn parse_include(include: &Include, state: &mut State) -> eyre::Result<()> {
     let Include {
         file,
         r#if,
@@ -234,7 +234,7 @@ fn parse_include(include: &Include, state: &mut State) -> Result<()> {
     Ok(())
 }
 
-fn parse_set_env(set_env: &SetEnv, state: &mut State) -> Result<()> {
+fn parse_set_env(set_env: &SetEnv, state: &mut State) -> eyre::Result<()> {
     let SetEnv {
         name,
         value,
@@ -250,7 +250,7 @@ fn parse_set_env(set_env: &SetEnv, state: &mut State) -> Result<()> {
     Ok(())
 }
 
-fn parse_unset_env(unset_env: &UnsetEnv, state: &mut State) -> Result<()> {
+fn parse_unset_env(unset_env: &UnsetEnv, state: &mut State) -> eyre::Result<()> {
     let UnsetEnv { name, r#if, unless } = unset_env;
     let yes = state.eval_if_unless(r#if.as_deref(), unless.as_deref())?;
     if yes {
@@ -270,7 +270,7 @@ struct State {
 }
 
 impl State {
-    pub fn eval_if_unless(&self, r#if: Option<&str>, unless: Option<&str>) -> Result<bool> {
+    pub fn eval_if_unless(&self, r#if: Option<&str>, unless: Option<&str>) -> eyre::Result<bool> {
         let if_value = match r#if {
             Some(cond) => self.eval_bool(cond)?,
             None => true,

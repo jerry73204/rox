@@ -7,3 +7,6 @@ members = [
     "launch-parse",
     "launch-subst",
 ]
+
+[workspace.dependencies]
+eyre = "0.6.12"

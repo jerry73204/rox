@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use eyre::{bail, WrapErr};
 use itertools::izip;
 use rayon::prelude::*;
 use ros_package_manifest::Package;
@@ -8,7 +8,7 @@ use std::{
 };
 use strong_xml::XmlRead;
 
-pub fn resolve<P>(dir: P) -> Result<()>
+pub fn resolve<P>(dir: P) -> eyre::Result<()>
 where
     P: AsRef<Path>,
 {
@@ -18,14 +18,17 @@ where
     // Load contents from manifest files
     let manifest_texts: Result<Vec<_>, _> = manifest_paths
         .par_iter()
-        .map(std::fs::read_to_string)
+        .map(|path| eyre::Ok((path, std::fs::read_to_string(path)?)))
         .collect();
     let manifest_texts = manifest_texts?;
 
     // Parse manifest file contents
     let manifests: Result<Vec<_>, _> = manifest_texts
         .par_iter()
-        .map(|text| Package::from_str(text))
+        .map(|(path, text)| {
+            Package::from_str(text)
+                .wrap_err_with(|| format!("error when parsing file {}", path.display()))
+        })
         .collect();
     let manifests = manifests?;
 
