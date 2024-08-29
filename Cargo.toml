@@ -6,6 +6,7 @@ members = [
     "launch-format",
     "launch-parse",
     "launch-subst",
+    "rox",
 ]
 
 [workspace.dependencies]
