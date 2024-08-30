@@ -1,6 +1,7 @@
 pub mod context;
 
-use eyre::{bail, ensure, Context, Result};
+use eyre::{bail, ensure, eyre, Context, OptionExt, Result};
+use itertools::Itertools;
 use launch_format::{
     Executable, Group, GroupChild, Include, IncludeArg, Launch, LaunchArg, LaunchChild, Let, Node,
     NodeChild, SetEnv, UnsetEnv,

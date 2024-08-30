@@ -1,5 +1,5 @@
-use eyre::{bail, Result};
 use clap::Parser;
+use eyre::{bail, Result};
 use itertools::Itertools;
 use std::path::PathBuf;
 
