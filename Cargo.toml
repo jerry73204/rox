@@ -6,7 +6,7 @@ members = [
     "launch-format",
     "launch-parse",
     "launch-subst",
-    "ament-dir",
+    "ament-index",
     "rox",
 ]
 
