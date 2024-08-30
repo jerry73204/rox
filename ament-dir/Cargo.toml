@@ -1,0 +1,11 @@
+[package]
+name = "ament-dir"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bindgen = "0.70.1"
+eyre.workspace = true
+itertools = "0.13.0"
+once_cell = "1.19.0"
+os_str_bytes = "7.0.0"
