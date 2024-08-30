@@ -379,13 +379,7 @@ impl State {
     }
 
     pub fn get_var(&self, name: &str) -> Option<&str> {
-        let value = self.current_scope().var.get(name)?;
-        Some(value)
-    }
-
-    pub fn get_env(&self, name: &str) -> Option<&str> {
-        let value = self.current_scope().env.get(name)?;
-        Some(value)
+        self.current_scope().var.get(name).map(|v| v.as_str())
     }
 
     pub fn get_var_or_insert(&mut self, name: &str, default: &str) -> &str {
@@ -393,6 +387,10 @@ impl State {
             .var
             .entry(name.to_string())
             .or_insert_with(|| default.to_string())
+    }
+
+    pub fn get_env(&self, name: &str) -> Option<&str> {
+        self.current_scope().env.get(name).map(|v| v.as_str())
     }
 
     pub fn get_env_or_insert(&mut self, name: &str, default: &str) -> &str {
