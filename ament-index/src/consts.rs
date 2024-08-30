@@ -9,8 +9,6 @@ pub const WATCHED_ENV_VARS: &[&str] = &[
     "ROS_DISTRO",
 ];
 
-// pub const AMENT_PREFIX_VAR_NAME: &str = "AMENT_PREFIX_PATH";
-
 #[cfg(target_os = "windows")]
 pub const PATH_SEPARATOR: char = ';';
 
