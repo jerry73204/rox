@@ -4,256 +4,234 @@ use std::{
     fmt::{self, Display},
     str::FromStr,
 };
-use strong_xml::{XmlRead, XmlWrite};
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "launch")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Launch {
-    #[xml(child = "")]
+    #[serde(default, rename = "$value")]
     pub children: Vec<LaunchChild>,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LaunchChild {
-    #[xml(tag = "arg")]
     Arg(LaunchArg),
-    #[xml(tag = "let")]
     Let(Let),
-    #[xml(tag = "executable")]
     Executable(Executable),
-    #[xml(tag = "node")]
     Node(Node),
-    #[xml(tag = "group")]
     Group(Group),
-    #[xml(tag = "include")]
     Include(Include),
-    #[xml(tag = "set-env")]
     SetEnv(SetEnv),
-    #[xml(tag = "unset-env")]
     UnsetEnv(UnsetEnv),
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "arg")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LaunchArg {
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: String,
-    #[xml(attr = "value")]
+
+    #[serde(rename = "@value")]
     pub value: Option<String>,
-    #[xml(attr = "default")]
+
+    #[serde(rename = "@default")]
     pub default: Option<String>,
-    #[xml(attr = "description")]
+
+    #[serde(rename = "@description")]
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "let")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Let {
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: String,
-    #[xml(attr = "value")]
+
+    #[serde(rename = "@value")]
     pub value: String,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "include")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Include {
-    #[xml(attr = "file")]
+    #[serde(rename = "@file")]
     pub file: String,
 
-    #[xml(attr = "if")]
+    #[serde(rename = "@if")]
     pub r#if: Option<String>,
 
-    #[xml(attr = "unless")]
+    #[serde(rename = "@unless")]
     pub unless: Option<String>,
 
-    #[xml(child = "")]
+    #[serde(default)]
     pub arg: Vec<IncludeArg>,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "arg")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IncludeArg {
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: String,
-    #[xml(attr = "value")]
+
+    #[serde(rename = "@value")]
     pub value: String,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "node")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
-    #[xml(attr = "pkg")]
+    #[serde(rename = "@pkg")]
     pub pkg: String,
 
-    #[xml(attr = "exec")]
+    #[serde(rename = "@exec")]
     pub exec: String,
 
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: Option<String>,
 
-    #[xml(attr = "ros-arg")]
+    #[serde(rename = "@ros-arg")]
     pub ros_args: Option<String>,
 
-    #[xml(attr = "arg")]
+    #[serde(rename = "@arg")]
     pub args: Option<String>,
 
-    #[xml(attr = "namespace")]
+    #[serde(rename = "@namespace")]
     pub namespace: Option<String>,
 
-    #[xml(attr = "launch-prefix")]
+    #[serde(rename = "@launch-prefix")]
     pub launch_prefix: Option<String>,
 
-    #[xml(attr = "output")]
+    #[serde(rename = "@output")]
     pub output: Option<Output>,
 
-    #[xml(attr = "if")]
+    #[serde(rename = "@if")]
     pub r#if: Option<String>,
 
-    #[xml(attr = "unless")]
+    #[serde(rename = "@unless")]
     pub unless: Option<String>,
 
-    #[xml(child = "")]
+    #[serde(default, rename = "$value")]
     pub children: Vec<NodeChild>,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum NodeChild {
-    #[xml(tag = "env")]
     Env(Env),
-    #[xml(tag = "param")]
     Param(Param),
-    #[xml(tag = "remap")]
     Remap(Remap),
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "remap")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Remap {
-    #[xml(attr = "from")]
+    #[serde(rename = "@from")]
     pub from: String,
-    #[xml(attr = "to")]
+
+    #[serde(rename = "@to")]
     pub to: String,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "param")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Param {
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: Option<String>,
-    #[xml(attr = "from")]
+
+    #[serde(rename = "@from")]
     pub from: Option<String>,
-    #[xml(attr = "sep")]
+
+    #[serde(rename = "@sep")]
     pub sep: Option<String>,
-    #[xml(attr = "value")]
+
+    #[serde(rename = "@value")]
     pub value: String,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "executable")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Executable {
-    #[xml(attr = "cmd")]
+    #[serde(rename = "@cmd")]
     pub cmd: String,
 
-    #[xml(attr = "cwd")]
+    #[serde(rename = "@cwd")]
     pub cwd: Option<String>,
 
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: Option<String>,
 
-    #[xml(attr = "args")]
+    #[serde(rename = "@args")]
     pub args: Option<String>,
 
-    #[xml(attr = "shell")]
+    #[serde(rename = "@shell")]
     pub shell: Option<String>,
 
-    #[xml(attr = "launch-prefix")]
+    #[serde(rename = "@launch-prefix")]
     pub launch_prefix: Option<String>,
 
-    #[xml(attr = "output")]
+    #[serde(rename = "@output")]
     pub output: Option<Output>,
 
-    #[xml(attr = "if")]
+    #[serde(rename = "@if")]
     pub r#if: Option<String>,
 
-    #[xml(attr = "unless")]
+    #[serde(rename = "@unless")]
     pub unless: Option<String>,
 
-    #[xml(child = "env")]
+    #[serde(default)]
     pub env: Vec<Env>,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "group")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
-    #[xml(attr = "scoped")]
+    #[serde(rename = "@scoped")]
     pub scoped: Option<bool>,
 
-    #[xml(attr = "if")]
+    #[serde(rename = "@if")]
     pub r#if: Option<String>,
 
-    #[xml(attr = "unless")]
+    #[serde(rename = "@unless")]
     pub unless: Option<String>,
 
-    #[xml(child = "")]
+    #[serde(default, rename = "$value")]
     pub children: Vec<GroupChild>,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum GroupChild {
-    #[xml(tag = "executable")]
     Executable(Executable),
-    #[xml(tag = "node")]
     Node(Node),
-    #[xml(tag = "group")]
     Group(Group),
-    #[xml(tag = "include")]
     Include(Include),
-    #[xml(tag = "set-env")]
     SetEnv(SetEnv),
-    #[xml(tag = "unset-env")]
     UnsetEnv(UnsetEnv),
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "set-env")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetEnv {
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: String,
 
-    #[xml(attr = "value")]
+    #[serde(rename = "@value")]
     pub value: String,
 
-    #[xml(attr = "if")]
+    #[serde(rename = "@if")]
     pub r#if: Option<String>,
 
-    #[xml(attr = "unless")]
+    #[serde(rename = "@unless")]
     pub unless: Option<String>,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "unset-env")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnsetEnv {
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: String,
 
-    #[xml(attr = "if")]
+    #[serde(rename = "@if")]
     pub r#if: Option<String>,
 
-    #[xml(attr = "unless")]
+    #[serde(rename = "@unless")]
     pub unless: Option<String>,
 }
 
-#[derive(Debug, Clone, XmlRead, XmlWrite, Serialize, Deserialize)]
-#[xml(tag = "env")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Env {
-    #[xml(attr = "name")]
+    #[serde(rename = "@name")]
     pub name: String,
 
-    #[xml(attr = "value")]
+    #[serde(rename = "@value")]
     pub value: String,
 }
 

@@ -13,7 +13,6 @@ use std::{
     io::BufReader,
     path::{Path, PathBuf},
 };
-use strong_xml::XmlRead;
 
 pub fn load_launch_file<P, I>(path: P, args: I) -> Result<context::Launch>
 where
@@ -56,13 +55,15 @@ where
     };
 
     let launch: Launch = if ext == "xml" {
-        let text = std::fs::read_to_string(path)
-            .with_context(|| format!("Unable to open {}", path.display()))?;
-        Launch::from_str(&text).with_context(|| format!("Unable to parse {}", path.display()))?
+        let file =
+            File::open(path).with_context(|| format!("Unable to open {}", path.display()))?;
+        let reader = BufReader::new(file);
+        quick_xml::de::from_reader(reader)
+            .with_context(|| format!("Unable to parse {}", path.display()))?
     } else if ext == "yaml" {
-        let reader = BufReader::new(
-            File::open(path).with_context(|| format!("Unable to open {}", path.display()))?,
-        );
+        let file =
+            File::open(path).with_context(|| format!("Unable to open {}", path.display()))?;
+        let reader = BufReader::new(file);
         serde_yaml::from_reader(reader)
             .with_context(|| format!("Unable to parse {}", path.display()))?
     } else {

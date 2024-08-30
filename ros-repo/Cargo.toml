@@ -8,9 +8,9 @@ eyre.workspace = true
 glob = "0.3.1"
 itertools = "0.13.0"
 pubgrub = "0.2.1"
+quick-xml = { version = "0.36.1", features = ["serialize"] }
 rayon = "1.10.0"
 ros-package-manifest = { version = "0.1.0", path = "../ros-package-manifest" }
-strong-xml = "0.6.3"
 
 [dev-dependencies]
 clap = { version = "4.5.16", features = ["derive"] }

@@ -6,7 +6,6 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     path::{Path, PathBuf},
 };
-use strong_xml::XmlRead;
 
 pub fn resolve<P>(dir: P) -> eyre::Result<()>
 where
@@ -26,7 +25,7 @@ where
     let manifests: Result<Vec<_>, _> = manifest_texts
         .par_iter()
         .map(|(path, text)| {
-            Package::from_str(text)
+            quick_xml::de::from_str::<Package>(text)
                 .wrap_err_with(|| format!("error when parsing file {}", path.display()))
         })
         .collect();

@@ -7,8 +7,8 @@ edition = "2021"
 eyre.workspace = true
 launch-format = { version = "0.1.0", path = "../launch-format" }
 launch-subst = { version = "0.1.0", path = "../launch-subst" }
+quick-xml = { version = "0.36.1", features = ["serialize"] }
 serde_yaml = "0.9.34"
-strong-xml = "0.6.3"
 
 [dev-dependencies]
 clap = { version = "4.5.1", features = ["derive"] }

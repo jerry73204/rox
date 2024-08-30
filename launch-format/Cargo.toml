@@ -8,4 +8,3 @@ edition = "2021"
 [dependencies]
 eyre.workspace = true
 serde = { version = "1.0.203", features = ["derive"] }
-strong-xml = "0.6.3"
