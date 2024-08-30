@@ -7,3 +7,5 @@ edition = "2021"
 eyre.workspace = true
 clap = { version = "4.5.16", features = ["derive"] }
 ros-repo = { version = "0.1.0", path = "../ros-repo" }
+itertools = "0.13.0"
+launch-parse = { version = "0.1.0", path = "../launch-parse" }
