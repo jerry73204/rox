@@ -18,7 +18,7 @@ macro_rules! bail {
 }
 
 pub fn parse(input: &str) -> Result<Vec<SubstBlock>, Error<Rule>> {
-    let mut pairs = ExprParser::parse(Rule::expr, input).unwrap();
+    let mut pairs = ExprParser::parse(Rule::expr, input)?;
     parse_expr(pairs.next().unwrap())
 }
 
@@ -85,6 +85,15 @@ fn parse_subst(pair: Pair<Rule>) -> Result<Substitution, Error<Rule>> {
             };
 
             Substitution::Find {
+                pkg: pkg.to_string(),
+            }
+        }
+        "find-pkg-share" => {
+            let [pkg] = args.as_slice() else {
+                bail!(span, "expect one argument: PACKAGE_NAME");
+            };
+
+            Substitution::FindPkgShare {
                 pkg: pkg.to_string(),
             }
         }

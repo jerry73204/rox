@@ -1,7 +1,7 @@
 pub mod context;
 
-use eyre::{bail, ensure, eyre, Context, OptionExt, Result};
-use itertools::Itertools;
+use ament_index::index::AmentIndex;
+use eyre::{bail, ensure, Context};
 use launch_format::{
     Executable, Group, GroupChild, Include, IncludeArg, Launch, LaunchArg, LaunchChild, Let, Node,
     NodeChild, SetEnv, UnsetEnv,
@@ -15,7 +15,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub fn load_launch_file<P, I>(path: P, args: I) -> Result<context::Launch>
+pub fn load_launch_file<P, I>(path: P, args: I) -> eyre::Result<context::Launch>
 where
     I: IntoIterator<Item = (String, String)>,
     P: AsRef<Path>,
@@ -25,6 +25,7 @@ where
         scopes: vec![],
         execs: vec![],
         nodes: vec![],
+        ament_index: ament_index::index::ament_index()?,
     };
 
     load_launch_file_private(path, args, &mut state)?;
@@ -138,7 +139,7 @@ fn parse_group(group: &Group, state: &mut State) -> eyre::Result<()> {
 
     let scoped = *scoped == Some(true);
 
-    let parse_child = |children: &[_], state: &mut State| -> Result<_> {
+    let parse_child = |children: &[_], state: &mut State| -> eyre::Result<_> {
         for child in children {
             match child {
                 GroupChild::Executable(exec) => parse_executable(exec, state)?,
@@ -269,6 +270,7 @@ struct State {
     scopes: Vec<Scope>,
     execs: Vec<context::Executable>,
     nodes: Vec<context::Node>,
+    ament_index: &'static AmentIndex,
 }
 
 impl State {
@@ -286,7 +288,7 @@ impl State {
         Ok(if_value && !unless_value)
     }
 
-    pub fn eval_bool(&self, text: &str) -> Result<bool> {
+    pub fn eval_bool(&self, text: &str) -> eyre::Result<bool> {
         let text = self.eval(text)?;
 
         let ret = match text.as_str() {
@@ -297,7 +299,7 @@ impl State {
         Ok(ret)
     }
 
-    pub fn eval(&self, text: &str) -> Result<String> {
+    pub fn eval(&self, text: &str) -> eyre::Result<String> {
         let blocks = launch_subst::parse(text)?;
         let mut buf = String::new();
 
@@ -312,7 +314,7 @@ impl State {
         Ok(buf)
     }
 
-    pub fn subst<'a>(&'a self, subst: &'a Substitution) -> Result<Cow<'a, str>> {
+    pub fn subst<'a>(&'a self, subst: &'a Substitution) -> eyre::Result<Cow<'a, str>> {
         let text: Cow<'a, str> = match subst {
             Substitution::Env { variable } => {
                 let Some(value) = self.get_env(variable) else {
@@ -328,6 +330,19 @@ impl State {
                     todo!();
                 };
                 value.into()
+            }
+            Substitution::FindPkgShare { pkg } => {
+                let Some(pkg_index) = self.ament_index.packages.get(pkg) else {
+                    todo!();
+                };
+                pkg_index
+                    .ament_dir
+                    .join("share")
+                    .join(pkg)
+                    .into_os_string()
+                    .into_string()
+                    .unwrap()
+                    .into()
             }
             Substitution::Find { pkg } => todo!(),
             Substitution::Anon { name } => todo!(),

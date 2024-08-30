@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ament-index = { version = "0.1.0", path = "../ament-index" }
 eyre.workspace = true
 itertools = "0.12.1"
 launch-format = { version = "0.1.0", path = "../launch-format" }
