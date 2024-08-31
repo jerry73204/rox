@@ -2,8 +2,8 @@ WHITESPACE = _{ " " }
 
 char = _{ ASCII_ALPHANUMERIC | "/" | "-" | "_" | "." }
 command = @{ (ASCII_ALPHA_LOWER | "-")+ }
-arg = @{ char+ }
+arg = ${ block+ }
 subst = !{ "$(" ~ command ~ arg* ~ ")" }
 text = @{ char+ }
 block = { subst | text }
-expr = { SOI ~ block* ~ EOI }
+expr = ${ SOI ~ block* ~ EOI }

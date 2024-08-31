@@ -3,7 +3,7 @@ pub mod context;
 use ament_index::index::AmentIndex;
 use eyre::{bail, ensure, Context};
 use launch_format::{
-    Executable, Group, GroupChild, Include, IncludeArg, Launch, LaunchArg, LaunchChild, Let, Node,
+    Arg, Env, Executable, Group, GroupChild, Include, IncludeArg, Launch, LaunchChild, Let, Node,
     NodeChild, SetEnv, UnsetEnv,
 };
 use launch_subst::{SubstBlock, Substitution};
@@ -75,14 +75,16 @@ where
         );
     };
 
-    state.with_wd(parent.to_path_buf(), |state| {
-        state.with_scope(|state| {
-            for (name, value) in args {
-                state.insert_var(name, value);
-            }
-            parse_launch(&launch, state)
+    state
+        .with_wd(parent.to_path_buf(), |state| {
+            state.with_scope(|state| {
+                for (name, value) in args {
+                    state.insert_var(name, state.eval(&value)?);
+                }
+                parse_launch(&launch, state)
+            })
         })
-    })?;
+        .with_context(|| format!("unable to parse launch file {}", path.display()))?;
 
     Ok(())
 }
@@ -90,7 +92,7 @@ where
 fn parse_launch(launch: &Launch, state: &mut State) -> eyre::Result<()> {
     for child in &launch.children {
         match child {
-            LaunchChild::Arg(LaunchArg {
+            LaunchChild::Arg(Arg {
                 name,
                 value,
                 default,
@@ -106,11 +108,11 @@ fn parse_launch(launch: &Launch, state: &mut State) -> eyre::Result<()> {
                     state.get_var_or_insert(name, default);
                 }
                 (Some(value), _) => {
-                    state.insert_var(name.to_string(), value.to_string());
+                    state.insert_var(name.to_string(), state.eval(value)?);
                 }
             },
             LaunchChild::Let(Let { name, value }) => {
-                state.insert_var(name.to_string(), value.to_string());
+                state.insert_var(name.to_string(), state.eval(value)?);
             }
             LaunchChild::Executable(exec) => parse_executable(exec, state)?,
             LaunchChild::Node(node) => parse_node(node, state)?,
@@ -148,6 +150,28 @@ fn parse_group(group: &Group, state: &mut State) -> eyre::Result<()> {
                 GroupChild::Include(include) => parse_include(include, state)?,
                 GroupChild::SetEnv(set_env) => parse_set_env(set_env, state)?,
                 GroupChild::UnsetEnv(unset_env) => parse_unset_env(unset_env, state)?,
+                GroupChild::Let(Let { name, value }) => {
+                    state.insert_var(name.to_string(), state.eval(value)?);
+                }
+                GroupChild::Arg(Arg {
+                    name,
+                    value,
+                    default,
+                    ..
+                }) => match (value, default) {
+                    (None, None) => {
+                        ensure!(
+                            state.contains_var(name),
+                            r#"The argument "{name}" is required but not provided."#
+                        );
+                    }
+                    (None, Some(default)) => {
+                        state.get_var_or_insert(name, default);
+                    }
+                    (Some(value), _) => {
+                        state.insert_var(name.to_string(), value.to_string());
+                    }
+                },
             }
         }
 
@@ -183,14 +207,37 @@ fn parse_node(node: &Node, state: &mut State) -> eyre::Result<()> {
         return Ok(());
     }
 
+    // TODO: populate envs from state
+    let mut env = HashMap::new();
+
+    let mut param = vec![];
+    let mut remap = vec![];
+
     for child in children {
         match child {
-            NodeChild::Env(_) => todo!(),
-            NodeChild::Param(_) => todo!(),
-            NodeChild::Remap(_) => todo!(),
+            NodeChild::Env(Env { name, value }) => {
+                env.insert(name.to_string(), value.to_string());
+            }
+            NodeChild::Param(p) => param.push(p.clone()),
+            NodeChild::Remap(r) => remap.push(r.clone()),
         }
     }
-    todo!();
+
+    state.nodes.push(context::Node {
+        pkg: pkg.clone(),
+        exec: exec.clone(),
+        name: name.clone(),
+        ros_args: ros_args.clone(),
+        args: args.clone(),
+        namespace: namespace.clone(),
+        launch_prefix: launch_prefix.clone(),
+        output: *output,
+        env,
+        param,
+        remap,
+    });
+
+    Ok(())
 }
 
 fn parse_executable(exec: &Executable, state: &mut State) -> eyre::Result<()> {
@@ -290,7 +337,6 @@ impl State {
 
     pub fn eval_bool(&self, text: &str) -> eyre::Result<bool> {
         let text = self.eval(text)?;
-
         let ret = match text.as_str() {
             "true" => true,
             "false" => false,
@@ -300,10 +346,18 @@ impl State {
     }
 
     pub fn eval(&self, text: &str) -> eyre::Result<String> {
-        let blocks = launch_subst::parse(text)?;
+        let blocks = launch_subst::parse(text)
+            .wrap_err_with(|| format!(r#"unable to parse expression "{text}""#))?;
+        let output = self
+            .subst_blocks(&blocks)
+            .wrap_err_with(|| format!(r#"unable to parse expression "{text}""#))?;
+        Ok(output)
+    }
+
+    pub fn subst_blocks(&self, blocks: &[SubstBlock]) -> eyre::Result<String> {
         let mut buf = String::new();
 
-        for block in &blocks {
+        for block in blocks {
             let text: Cow<_> = match block {
                 SubstBlock::Text(text) => text.into(),
                 SubstBlock::Substitution(subst) => self.subst(subst)?,
@@ -315,41 +369,49 @@ impl State {
     }
 
     pub fn subst<'a>(&'a self, subst: &'a Substitution) -> eyre::Result<Cow<'a, str>> {
-        let text: Cow<'a, str> = match subst {
-            Substitution::Env { variable } => {
-                let Some(value) = self.get_env(variable) else {
+        let Substitution { command, args } = subst;
+
+        let text: Cow<'a, str> = match command.as_str() {
+            "env" => {
+                let [arg] = args.as_slice() else {
+                    todo!();
+                };
+                let name = self.subst_blocks(&arg.0)?;
+                let Some(value) = self.get_env(&name) else {
                     todo!();
                 };
                 value.into()
             }
-            Substitution::OptEnv {
-                variable,
-                default_value,
-            } => {
-                let Some(value) = self.get_env(variable).or(default_value.as_deref()) else {
+            "find-pkg-share" => {
+                let [arg] = args.as_slice() else {
                     todo!();
                 };
-                value.into()
-            }
-            Substitution::FindPkgShare { pkg } => {
-                let Some(pkg_index) = self.ament_index.packages.get(pkg) else {
-                    todo!();
+                let package_name = self.subst_blocks(&arg.0)?;
+                let Some(pkg_index) = self.ament_index.packages.get(&package_name) else {
+                    bail!(r#"package "{package_name}" not found"#);
                 };
                 pkg_index
                     .ament_dir
                     .join("share")
-                    .join(pkg)
+                    .join(package_name)
                     .into_os_string()
                     .into_string()
                     .unwrap()
                     .into()
             }
-            Substitution::Find { pkg } => todo!(),
-            Substitution::Anon { name } => todo!(),
-            Substitution::Arg { name } => todo!(),
-            Substitution::Eval { expr } => todo!(),
-            Substitution::DirName => todo!(),
-            Substitution::Other { args } => todo!(),
+            "find" => todo!(),
+            "eval" => todo!(),
+            "var" => {
+                let [arg] = args.as_slice() else {
+                    todo!();
+                };
+                let name = self.subst_blocks(&arg.0)?;
+                let Some(value) = self.get_var(&name) else {
+                    bail!("variable \"{name}\" is used before assignment");
+                };
+                value.into()
+            }
+            _ => bail!("unknown command \"{command}\""),
         };
         Ok(text)
     }

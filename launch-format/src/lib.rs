@@ -14,7 +14,7 @@ pub struct Launch {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LaunchChild {
-    Arg(LaunchArg),
+    Arg(Arg),
     Let(Let),
     Executable(Executable),
     Node(Node),
@@ -25,7 +25,7 @@ pub enum LaunchChild {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LaunchArg {
+pub struct Arg {
     #[serde(rename = "@name")]
     pub name: String,
 
@@ -197,6 +197,8 @@ pub enum GroupChild {
     Include(Include),
     SetEnv(SetEnv),
     UnsetEnv(UnsetEnv),
+    Let(Let),
+    Arg(Arg),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
