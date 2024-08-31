@@ -7,7 +7,7 @@ edition = "2021"
 ament-index = { version = "0.1.0", path = "../ament-index" }
 eyre.workspace = true
 itertools = "0.12.1"
-launch-format = { version = "0.1.0", path = "../launch-format" }
+launch-format = { version = "0.1.0", path = "../launch-format/launch-format" }
 launch-subst = { version = "0.1.0", path = "../launch-subst" }
 quick-xml = { version = "0.36.1", features = ["serialize"] }
 serde_yaml = "0.9.34"

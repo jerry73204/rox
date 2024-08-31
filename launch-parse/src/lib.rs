@@ -60,24 +60,28 @@ where
         );
     };
 
-    let launch: Launch = if ext == "xml" {
-        let file =
-            File::open(path).with_context(|| format!("Unable to open {}", path.display()))?;
-        let reader = BufReader::new(file);
-        quick_xml::de::from_reader(reader)
-            .with_context(|| format!("Unable to parse {}", path.display()))?
-    } else if ext == "yaml" {
-        let file =
-            File::open(path).with_context(|| format!("Unable to open {}", path.display()))?;
-        let reader = BufReader::new(file);
-        serde_yaml::from_reader(reader)
-            .with_context(|| format!("Unable to parse {}", path.display()))?
-    } else {
-        bail!(
-            "The launch file must ends with '.xml' or '.yaml': {}",
-            path.display()
-        );
-    };
+    // let launch: Launch = if ext == "xml" {
+    //     let file =
+    //         File::open(path).with_context(|| format!("unable to open {}", path.display()))?;
+    //     let reader = BufReader::new(file);
+    //     quick_xml::de::from_reader(reader)
+    //         .with_context(|| format!("unable to parse {}", path.display()))?
+    // } else if ext == "yaml" {
+    //     let file =
+    //         File::open(path).with_context(|| format!("unable to open {}", path.display()))?;
+    //     let reader = BufReader::new(file);
+    //     serde_yaml::from_reader(reader)
+    //         .with_context(|| format!("unable to parse {}", path.display()))?
+    // } else if ext == "py" {
+    //     // TODO: omit
+    //     Launch { children: vec![] }
+    // } else {
+    //     bail!(
+    //         "The launch file must ends with '.xml' or '.yaml': {}",
+    //         path.display()
+    //     );
+    // };
+    let launch: Launch = launch_format::load_launch_file(path)?;
 
     for (name, value) in args {
         state.var_store.insert_var(name, state.eval(&value)?);

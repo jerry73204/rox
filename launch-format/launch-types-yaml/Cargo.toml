@@ -1,0 +1,11 @@
+[package]
+name = "launch-types-yaml"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+eyre.workspace = true
+launch-types-common = { version = "0.1.0", path = "../launch-types-common" }
+serde = { version = "1.0.203", features = ["derive"] }
