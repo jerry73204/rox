@@ -4,8 +4,8 @@ mod var_store;
 use ament_index::index::AmentIndex;
 use eyre::{bail, ensure, Context};
 use launch_format::{
-    Arg, Env, Executable, Group, GroupChild, Include, IncludeArg, Launch, LaunchChild, Let, Node,
-    NodeChild, SetEnv, UnsetEnv,
+    DeclareArg, Env, Executable, Group, GroupChild, Include, IncludeArg, Launch, LaunchChild, Let,
+    Node, NodeChild, PushRosNamespace, SetEnv, UnsetEnv,
 };
 use launch_subst::{SubstBlock, Substitution};
 use std::{
@@ -32,7 +32,7 @@ where
         var_store: &mut var_store,
     };
 
-    load_launch_file_private(path, args, &mut state)?;
+    state.with_scope(|state| load_launch_file_private(path, args, state))?;
 
     let State { execs, nodes, .. } = state;
     let profile = output::Launch { execs, nodes };
@@ -79,57 +79,50 @@ where
         );
     };
 
+    for (name, value) in args {
+        state.var_store.insert_var(name, state.eval(&value)?);
+    }
+
     state
         .with_wd(parent.to_path_buf(), |state| {
-            state.with_scope(|state| {
-                for (name, value) in args {
-                    state.var_store.insert_var(name, state.eval(&value)?);
+            for child in &launch.children {
+                match child {
+                    LaunchChild::Arg(DeclareArg { name, default, .. }) => {
+                        match (state.var_store.contains_var(name), default) {
+                            (false, None) => {
+                                ensure!(
+                                    state.var_store.contains_var(name),
+                                    r#"the argument "{name}" is required but is not provided."#
+                                );
+                            }
+                            (false, Some(default)) => {
+                                // if name == "motion_velocity_smoother_type" {
+                                //     dbg!();
+                                // }
+                                state
+                                    .var_store
+                                    .insert_var(name.to_string(), default.to_string());
+                            }
+                            (true, _) => {}
+                        }
+                    }
+                    LaunchChild::Let(Let { name, value }) => {
+                        state
+                            .var_store
+                            .insert_var(name.to_string(), state.eval(value)?);
+                    }
+                    LaunchChild::Executable(exec) => parse_executable(exec, state)?,
+                    LaunchChild::Node(node) => parse_node(node, state)?,
+                    LaunchChild::Group(group) => parse_group(group, state)?,
+                    LaunchChild::Include(include) => parse_include(include, state)?,
+                    LaunchChild::SetEnv(set_env) => parse_set_env(set_env, state)?,
+                    LaunchChild::UnsetEnv(unset_env) => parse_unset_env(unset_env, state)?,
                 }
-                parse_launch(&launch, state)
-            })
+            }
+
+            Ok(())
         })
         .with_context(|| format!("unable to parse launch file {}", path.display()))?;
-
-    Ok(())
-}
-
-fn parse_launch(launch: &Launch, state: &mut State) -> eyre::Result<()> {
-    for child in &launch.children {
-        match child {
-            LaunchChild::Arg(Arg {
-                name,
-                value,
-                default,
-                ..
-            }) => match (value, default) {
-                (None, None) => {
-                    ensure!(
-                        state.var_store.contains_var(name),
-                        r#"The argument "{name}" is required but not provided."#
-                    );
-                }
-                (None, Some(default)) => {
-                    state.var_store.get_var_or_insert(name, default);
-                }
-                (Some(value), _) => {
-                    state
-                        .var_store
-                        .insert_var(name.to_string(), state.eval(value)?);
-                }
-            },
-            LaunchChild::Let(Let { name, value }) => {
-                state
-                    .var_store
-                    .insert_var(name.to_string(), state.eval(value)?);
-            }
-            LaunchChild::Executable(exec) => parse_executable(exec, state)?,
-            LaunchChild::Node(node) => parse_node(node, state)?,
-            LaunchChild::Group(group) => parse_group(group, state)?,
-            LaunchChild::Include(include) => parse_include(include, state)?,
-            LaunchChild::SetEnv(set_env) => parse_set_env(set_env, state)?,
-            LaunchChild::UnsetEnv(unset_env) => parse_unset_env(unset_env, state)?,
-        }
-    }
 
     Ok(())
 }
@@ -163,27 +156,25 @@ fn parse_group(group: &Group, state: &mut State) -> eyre::Result<()> {
                         .var_store
                         .insert_var(name.to_string(), state.eval(value)?);
                 }
-                GroupChild::Arg(Arg {
-                    name,
-                    value,
-                    default,
-                    ..
-                }) => match (value, default) {
-                    (None, None) => {
-                        ensure!(
-                            state.var_store.contains_var(name),
-                            r#"The argument "{name}" is required but not provided."#
-                        );
+                GroupChild::Arg(DeclareArg { name, default, .. }) => {
+                    match (state.var_store.contains_var(name), default) {
+                        (false, None) => {
+                            ensure!(
+                                state.var_store.contains_var(name),
+                                r#"The argument "{name}" is required but not provided."#
+                            );
+                        }
+                        (false, Some(default)) => {
+                            state
+                                .var_store
+                                .insert_var(name.to_string(), default.to_string());
+                        }
+                        (true, _) => {}
                     }
-                    (None, Some(default)) => {
-                        state.var_store.get_var_or_insert(name, default);
-                    }
-                    (Some(value), _) => {
-                        state
-                            .var_store
-                            .insert_var(name.to_string(), value.to_string());
-                    }
-                },
+                }
+                GroupChild::PushRosNamespace(PushRosNamespace { namespace }) => {
+                    // TODO
+                }
             }
         }
 
@@ -291,7 +282,7 @@ fn parse_include(include: &Include, state: &mut State) -> eyre::Result<()> {
     let args = arg
         .iter()
         .map(|IncludeArg { name, value }| (name.to_string(), value.to_string()));
-    load_launch_file_private(path, args, state)?;
+    load_launch_file_private(&path, args, state)?;
 
     Ok(())
 }
