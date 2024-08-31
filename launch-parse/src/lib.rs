@@ -1,4 +1,5 @@
-pub mod context;
+pub mod output;
+mod var_store;
 
 use ament_index::index::AmentIndex;
 use eyre::{bail, ensure, Context};
@@ -14,24 +15,27 @@ use std::{
     io::BufReader,
     path::{Path, PathBuf},
 };
+use var_store::VarStore;
 
-pub fn load_launch_file<P, I>(path: P, args: I) -> eyre::Result<context::Launch>
+pub fn load_launch_file<P, I>(path: P, args: I) -> eyre::Result<output::Launch>
 where
     I: IntoIterator<Item = (String, String)>,
     P: AsRef<Path>,
 {
+    let mut var_store = VarStore::default();
     let mut state = State {
         work_dirs: vec![],
-        scopes: vec![],
+        namespace_segments: vec![],
         execs: vec![],
         nodes: vec![],
         ament_index: ament_index::index::ament_index()?,
+        var_store: &mut var_store,
     };
 
     load_launch_file_private(path, args, &mut state)?;
 
     let State { execs, nodes, .. } = state;
-    let profile = context::Launch { execs, nodes };
+    let profile = output::Launch { execs, nodes };
 
     Ok(profile)
 }
@@ -79,7 +83,7 @@ where
         .with_wd(parent.to_path_buf(), |state| {
             state.with_scope(|state| {
                 for (name, value) in args {
-                    state.insert_var(name, state.eval(&value)?);
+                    state.var_store.insert_var(name, state.eval(&value)?);
                 }
                 parse_launch(&launch, state)
             })
@@ -100,19 +104,23 @@ fn parse_launch(launch: &Launch, state: &mut State) -> eyre::Result<()> {
             }) => match (value, default) {
                 (None, None) => {
                     ensure!(
-                        state.contains_var(name),
+                        state.var_store.contains_var(name),
                         r#"The argument "{name}" is required but not provided."#
                     );
                 }
                 (None, Some(default)) => {
-                    state.get_var_or_insert(name, default);
+                    state.var_store.get_var_or_insert(name, default);
                 }
                 (Some(value), _) => {
-                    state.insert_var(name.to_string(), state.eval(value)?);
+                    state
+                        .var_store
+                        .insert_var(name.to_string(), state.eval(value)?);
                 }
             },
             LaunchChild::Let(Let { name, value }) => {
-                state.insert_var(name.to_string(), state.eval(value)?);
+                state
+                    .var_store
+                    .insert_var(name.to_string(), state.eval(value)?);
             }
             LaunchChild::Executable(exec) => parse_executable(exec, state)?,
             LaunchChild::Node(node) => parse_node(node, state)?,
@@ -151,7 +159,9 @@ fn parse_group(group: &Group, state: &mut State) -> eyre::Result<()> {
                 GroupChild::SetEnv(set_env) => parse_set_env(set_env, state)?,
                 GroupChild::UnsetEnv(unset_env) => parse_unset_env(unset_env, state)?,
                 GroupChild::Let(Let { name, value }) => {
-                    state.insert_var(name.to_string(), state.eval(value)?);
+                    state
+                        .var_store
+                        .insert_var(name.to_string(), state.eval(value)?);
                 }
                 GroupChild::Arg(Arg {
                     name,
@@ -161,15 +171,17 @@ fn parse_group(group: &Group, state: &mut State) -> eyre::Result<()> {
                 }) => match (value, default) {
                     (None, None) => {
                         ensure!(
-                            state.contains_var(name),
+                            state.var_store.contains_var(name),
                             r#"The argument "{name}" is required but not provided."#
                         );
                     }
                     (None, Some(default)) => {
-                        state.get_var_or_insert(name, default);
+                        state.var_store.get_var_or_insert(name, default);
                     }
                     (Some(value), _) => {
-                        state.insert_var(name.to_string(), value.to_string());
+                        state
+                            .var_store
+                            .insert_var(name.to_string(), value.to_string());
                     }
                 },
             }
@@ -223,7 +235,7 @@ fn parse_node(node: &Node, state: &mut State) -> eyre::Result<()> {
         }
     }
 
-    state.nodes.push(context::Node {
+    state.nodes.push(output::Node {
         pkg: pkg.clone(),
         exec: exec.clone(),
         name: name.clone(),
@@ -294,7 +306,9 @@ fn parse_set_env(set_env: &SetEnv, state: &mut State) -> eyre::Result<()> {
 
     let yes = state.eval_if_unless(r#if.as_deref(), unless.as_deref())?;
     if yes {
-        state.insert_env(name.to_string(), value.to_string());
+        state
+            .var_store
+            .insert_env(name.to_string(), value.to_string());
     }
 
     Ok(())
@@ -304,7 +318,7 @@ fn parse_unset_env(unset_env: &UnsetEnv, state: &mut State) -> eyre::Result<()> 
     let UnsetEnv { name, r#if, unless } = unset_env;
     let yes = state.eval_if_unless(r#if.as_deref(), unless.as_deref())?;
     if yes {
-        let value = state.remove_env(name);
+        let value = state.var_store.remove_env(name);
         if value.is_none() {
             todo!();
         }
@@ -312,15 +326,16 @@ fn parse_unset_env(unset_env: &UnsetEnv, state: &mut State) -> eyre::Result<()> 
     Ok(())
 }
 
-struct State {
+struct State<'a> {
     work_dirs: Vec<PathBuf>,
-    scopes: Vec<Scope>,
-    execs: Vec<context::Executable>,
-    nodes: Vec<context::Node>,
+    namespace_segments: Vec<String>,
+    execs: Vec<output::Executable>,
+    nodes: Vec<output::Node>,
+    var_store: &'a mut VarStore,
     ament_index: &'static AmentIndex,
 }
 
-impl State {
+impl<'a> State<'a> {
     pub fn eval_if_unless(&self, r#if: Option<&str>, unless: Option<&str>) -> eyre::Result<bool> {
         let if_value = match r#if {
             Some(cond) => self.eval_bool(cond)?,
@@ -368,16 +383,16 @@ impl State {
         Ok(buf)
     }
 
-    pub fn subst<'a>(&'a self, subst: &'a Substitution) -> eyre::Result<Cow<'a, str>> {
+    pub fn subst(&self, subst: &Substitution) -> eyre::Result<Cow<'_, str>> {
         let Substitution { command, args } = subst;
 
-        let text: Cow<'a, str> = match command.as_str() {
+        let text: Cow<'_, str> = match command.as_str() {
             "env" => {
                 let [arg] = args.as_slice() else {
                     todo!();
                 };
                 let name = self.subst_blocks(&arg.0)?;
-                let Some(value) = self.get_env(&name) else {
+                let Some(value) = self.var_store.get_env(&name) else {
                     todo!();
                 };
                 value.into()
@@ -406,7 +421,7 @@ impl State {
                     todo!();
                 };
                 let name = self.subst_blocks(&arg.0)?;
-                let Some(value) = self.get_var(&name) else {
+                let Some(value) = self.var_store.get_var(&name) else {
                     bail!("variable \"{name}\" is used before assignment");
                 };
                 value.into()
@@ -434,73 +449,9 @@ impl State {
     where
         F: FnOnce(&mut Self) -> T,
     {
-        self.scopes.push(Scope::default());
+        self.var_store.push_scope();
         let output = f(self);
-        self.scopes.pop().unwrap();
+        self.var_store.pop_scope();
         output
-    }
-
-    pub fn contains_var(&self, name: &str) -> bool {
-        self.current_scope().var.contains_key(name)
-    }
-
-    pub fn contains_env(&self, name: &str) -> bool {
-        self.current_scope().env.contains_key(name)
-    }
-
-    pub fn insert_var(&mut self, name: String, value: String) {
-        self.current_scope_mut().var.insert(name, value);
-    }
-
-    pub fn insert_env(&mut self, name: String, value: String) {
-        self.current_scope_mut().var.insert(name, value);
-    }
-
-    pub fn get_var(&self, name: &str) -> Option<&str> {
-        self.current_scope().var.get(name).map(|v| v.as_str())
-    }
-
-    pub fn get_var_or_insert(&mut self, name: &str, default: &str) -> &str {
-        self.current_scope_mut()
-            .var
-            .entry(name.to_string())
-            .or_insert_with(|| default.to_string())
-    }
-
-    pub fn get_env(&self, name: &str) -> Option<&str> {
-        self.current_scope().env.get(name).map(|v| v.as_str())
-    }
-
-    pub fn get_env_or_insert(&mut self, name: &str, default: &str) -> &str {
-        self.current_scope_mut()
-            .env
-            .entry(name.to_string())
-            .or_insert_with(|| default.to_string())
-    }
-
-    pub fn remove_env(&mut self, name: &str) -> Option<String> {
-        self.current_scope_mut().env.remove(name)
-    }
-
-    pub fn current_scope(&self) -> &Scope {
-        self.scopes.last().unwrap()
-    }
-
-    pub fn current_scope_mut(&mut self) -> &mut Scope {
-        self.scopes.last_mut().unwrap()
-    }
-}
-
-struct Scope {
-    var: HashMap<String, String>,
-    env: HashMap<String, String>,
-}
-
-impl Default for Scope {
-    fn default() -> Self {
-        Self {
-            var: HashMap::new(),
-            env: HashMap::new(),
-        }
     }
 }
